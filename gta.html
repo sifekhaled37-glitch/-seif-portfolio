@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>GTA ZAGAZIG</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;touch-action:none}
+body{background:#0f0f0f;color:#fff;font-family:system-ui;overflow:hidden;height:100vh}
+#gameCanvas{width:100%;height:100vh;display:block;background:#2a2a2a}
+#ui{position:absolute;top:0;left:0;right:0;padding:10px;display:flex;justify-content:space-between;pointer-events:none}
+.stat{background:rgba(0,0,0,0.7);padding:8px 14px;border-radius:10px;font-weight:bold;border:2px solid #ffcc00}
+#controls{position:absolute;bottom:20px;left:0;right:0;display:flex;justify-content:space-between;padding:0 20px;pointer-events:none}
+.joystick{width:120px;height:120px;background:rgba(255,255,255,0.1);border-radius:50%;position:relative;pointer-events:auto;border:2px solid rgba(255,255,255,0.3)}
+.stick{width:50px;height:50px;background:#ffcc00;border-radius:50%;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}
+.btns{display:flex;flex-direction:column;gap:10px;pointer-events:auto}
+.btn{width:60px;height:60px;background:rgba(255,204,0,0.9);border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#000;font-weight:bold;border:none}
+#startScreen{position:absolute;inset:0;background:linear-gradient(135deg,#000,#333);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10}
+#startScreen h1{font-size:48px;color:#ffcc00;margin-bottom:10px}
+.startBtn{padding:15px 40px;background:#ffcc00;color:#000;border:none;border-radius:30px;font-size:20px;font-weight:bold}
+</style>
+</head>
+<body>
+<div id="startScreen">
+<h1>GTA ZAGAZIG</h1>
+<p>Seif Edition - 2026</p>
+<button class="startBtn" onclick="startGame()">ابدأ اللعب 🚗</button>
+</div>
+<div id="ui">
+<div class="stat">💰 $<span id="money">0</span></div>
+<div class="stat">💨 <span id="speed">0</span> KM/H</div>
+<div class="stat">⭐ <span id="wanted">0</span></div>
+</div>
+<canvas id="gameCanvas"></canvas>
+<div id="controls">
+<div class="joystick" id="joystick"><div class="stick" id="stick"></div></div>
+<div class="btns">
+<button class="btn" id="brake">🛑</button>
+<button class="btn" id="horn">📢</button>
+</div>
+</div>
+<script>
+const canvas=document.getElementById('gameCanvas');const ctx=canvas.getContext('2d');let W,H;function resize(){W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight}resize();window.addEventListener('resize',resize);
+let gameStarted=false;let keys={};window.addEventListener('keydown',e=>keys[e.key.toLowerCase()]=true);window.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+let car={x:0,y:0,angle:0,speed:0,maxSpeed:8,acc:0.25,friction:0.93,turnSpeed:0.06};let camera={x:0,y:0};let money=0,wanted=0;let buildings=[];let coins=[];
+function genWorld(){buildings=[];for(let i=0;i<120;i++){buildings.push({x:(Math.random()-0.5)*3000,y:(Math.random()-0.5)*3000,w:60+Math.random()*120,h:60+Math.random()*120,color:`hsl(${20+Math.random()*40},15%,${15+Math.random()*15}%)`})}coins=[];for(let i=0;i<30;i++){coins.push({x:(Math.random()-0.5)*2000,y:(Math.random()-0.5)*2000,taken:false})}}genWorld();
+function startGame(){document.getElementById('startScreen').style.display='none';gameStarted=true;loop()}
+let joyX=0,joyY=0;const joystick=document.getElementById('joystick');const stick=document.getElementById('stick');let dragging=false;
+joystick.addEventListener('touchstart',e=>{dragging=true});joystick.addEventListener('touchend',e=>{dragging=false;joyX=0;joyY=0;stick.style.transform='translate(-50%,-50%)'});joystick.addEventListener('touchmove',e=>{if(!dragging)return;const rect=joystick.getBoundingClientRect();const cx=rect.left+rect.width/2,cy=rect.top+rect.height/2;let dx=e.touches[0].clientX-cx,dy=e.touches[0].clientY-cy;const dist=Math.min(Math.sqrt(dx*dx+dy*dy),50);const ang=Math.atan2(dy,dx);dx=Math.cos(ang)*dist;dy=Math.sin(ang)*dist;joyX=dx/50;joyY=dy/50;stick.style.transform=`translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`});
+function update(){let forward=keys['w']||keys['arrowup']||joyY<-0.2;let back=keys['s']||keys['arrowdown']||joyY>0.2;let left=keys['a']||keys['arrowleft']||joyX<-0.2;let right=keys['d']||keys['arrowright']||joyX>0.2;if(forward)car.speed+=car.acc;if(back)car.speed-=car.acc*0.6;else car.speed*=car.friction;car.speed=Math.max(-car.maxSpeed*0.6,Math.min(car.maxSpeed,car.speed));if(Math.abs(car.speed)>0.5){if(left)car.angle-=car.turnSpeed*(car.speed>0?1:-1);if(right)car.angle+=car.turnSpeed*(car.speed>0?1:-1)}car.x+=Math.cos(car.angle)*car.speed;car.y+=Math.sin(car.angle)*car.speed;camera.x+=(car.x-camera.x)*0.1;camera.y+=(car.y-camera.y)*0.1;coins.forEach(c=>{if(!c.taken){const d=Math.hypot(car.x-c.x,car.y-c.y);if(d<40){c.taken=true;money+=100;wanted=Math.min(5,wanted+0.2);document.getElementById('money').innerText=money}}});if(coins.every(c=>c.taken)){genWorld()}document.getElementById('speed').innerText=Math.abs(Math.round(car.speed*20));document.getElementById('wanted').innerText=Math.floor(wanted)}
+function draw(){ctx.save();ctx.translate(W/2-camera.x,H/2-camera.y);ctx.strokeStyle='#333';ctx.lineWidth=1;for(let x=-2000;x<2000;x+=100){ctx.beginPath();ctx.moveTo(x,-2000);ctx.lineTo(x,2000);ctx.stroke()}for(let y=-2000;y<2000;y+=100){ctx.beginPath();ctx.moveTo(-2000,y);ctx.lineTo(2000,y);ctx.stroke()}buildings.forEach(b=>{ctx.fillStyle=b.color;ctx.fillRect(b.x,b.y,b.w,b.h)});coins.forEach(c=>{if(c.taken)return;ctx.fillStyle='#ffcc00';ctx.beginPath();ctx.arc(c.x,c.y,15,0,Math.PI*2);ctx.fill();ctx.fillStyle='#000';ctx.font='bold 12px Arial';ctx.fillText('$',c.x-4,c.y+4)});ctx.save();ctx.translate(car.x,car.y);ctx.rotate(car.angle);ctx.fillStyle='#ffcc00';ctx.fillRect(-25,-12,50,24);ctx.fillStyle='#111';ctx.fillRect(-20,-12,12,6);ctx.fillRect(-20,6,12,6);ctx.fillRect(10,-12,10,6);ctx.fillRect(10,6,10,6);ctx.fillStyle='#00d0ff';ctx.fillRect(5,-10,10,20);ctx.restore();ctx.restore()}
+function loop(){if(!gameStarted)return;update();draw();requestAnimationFrame(loop)}
+</script>
+</body>
+</html>
